@@ -57,12 +57,12 @@ function trackClicks(e) {
 function containsApplyText(text) {
     const keywords = [
         "apply",
-        "easy apply",
+        "submit application",
         "quick apply",
         "1-click apply",
         "submit"
     ];
-    return keywords.some(keyword => text.includes(keyword));
+    return keywords.some(keyword => text.includes(keyword)) && text != "easy apply";
 }
 
 function getCompanyName() {
@@ -106,12 +106,23 @@ function getCompanyName() {
     // ✅ NEW: Look for company name in image alt tags
     const logoImg = document.querySelector('img[alt*="logo"], img[alt*="Logo"]');
     if (logoImg && logoImg.alt) {
-        // Remove "logo" from the alt text if present
         return logoImg.alt.replace(/logo/i, '').trim();
+    }
+
+    // ✅ NEW: Look for label "Brand:" or similar and get next sibling text
+    const brandLabel = Array.from(document.querySelectorAll('span, div')).find(el =>
+        el.innerText && el.innerText.trim().match(/Brand:/i)
+    );
+    if (brandLabel) {
+        const nextSpan = brandLabel.nextElementSibling;
+        if (nextSpan && nextSpan.innerText.trim()) {
+            return nextSpan.innerText.trim();
+        }
     }
 
     return null; // No company found
 }
+
 
 // Ask user when on job page
 const url = window.location.href.toLowerCase();
@@ -135,9 +146,9 @@ chrome.runtime.onMessage.addListener((msg) => {
 
 function handleClick(e) {
     const el = e.target.closest('button, [role="button"], input[type="submit"], .btn'); 
-    //console.log("Button clicked:", el)// check actual buttons or styled ones
+    console.log("Button clicked:", el)// check actual buttons or styled ones
     if (el) {
-        console.log("Button clicked:", el);
+        //console.log("Button clicked:", el);
         trackClicks(e);
     }
 }
