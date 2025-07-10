@@ -57,7 +57,7 @@ function getCompanyName() {
         const text = applyHeader.innerText.trim();
         const companyMatch = text.match(/Apply to (.+)/i);
         if (companyMatch) {
-            return companyMatch[1].trim(); // Extracts "Rock Solid Solutions Mumbai"
+            return companyMatch[1].trim();
         }
     }
 
@@ -70,7 +70,7 @@ function getCompanyName() {
     // LinkedIn meta tags fallback
     const metaOgTitle = document.querySelector('meta[property="og:title"]');
     if (metaOgTitle && metaOgTitle.content) {
-        const match = metaOgTitle.content.match(/at (.+)$/i); // e.g., "Software Engineer at Google"
+        const match = metaOgTitle.content.match(/at (.+)$/i);
         if (match) {
             return match[1].trim();
         }
@@ -88,9 +88,15 @@ function getCompanyName() {
         return metaCompany.content.trim();
     }
 
+    // ✅ NEW: Look for company name in image alt tags
+    const logoImg = document.querySelector('img[alt*="logo"], img[alt*="Logo"]');
+    if (logoImg && logoImg.alt) {
+        // Remove "logo" from the alt text if present
+        return logoImg.alt.replace(/logo/i, '').trim();
+    }
+
     return null; // No company found
 }
-
 
 // Ask user when on job page
 const url = window.location.href.toLowerCase();
