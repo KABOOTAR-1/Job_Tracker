@@ -181,15 +181,16 @@ chrome.tabs.onRemoved.addListener((tabId) => {
 
 // Replace the tab update listener
 chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
-    if (changeInfo.status === "loading" && trackingTabs[tabId]) {
-        // Only disable tracking if the URL has changed
-        chrome.tabs.get(tabId, (currentTab) => {
-            if (currentTab.url !== tab.url) {
-                disableTracking(tabId);
-            } else if (changeInfo.status === "complete") {
-                // Reinitialize tracking on the same URL
-                enableTracking(tabId);
-            }
-        });
+    if (trackingTabs[tabId]) {
+        if (changeInfo.status === "loading") {
+            chrome.tabs.get(tabId, (currentTab) => {
+                if (currentTab.url !== tab.url) {
+                    disableTracking(tabId);
+                }
+            });
+        } else if (changeInfo.status === "complete") {
+            console.log(`Tab ${tabId} finished loading, reattaching event listeners`);
+            enableTracking(tabId);
+        }
     }
 });

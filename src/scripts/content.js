@@ -131,16 +131,29 @@ if (["jobs", "careers", "apply", "opportunities"].some(k => url.includes(k))) {
 }
 
 // Listen for start/stop tracking commands from background.js
+let isTrackingActive = false;
+
 chrome.runtime.onMessage.addListener((msg) => {
     if (msg.action === "startTracking") {
-        console.log("Tracking started");
-        document.addEventListener("click", handleClick);
-        addTrackingIndicator();
+        if (!isTrackingActive) {
+            console.log("Tracking started");
+            document.addEventListener("click", handleClick);
+            addTrackingIndicator();
+            isTrackingActive = true; // mark as active
+        } else {
+            console.log("Tracking is already active");
+        }
     }
+
     if (msg.action === "stopTracking") {
-        console.log("Tracking stopped");
-        document.removeEventListener("click", handleClick);
-        removeTrackingIndicator();
+        if (isTrackingActive) {
+            console.log("Tracking stopped");
+            document.removeEventListener("click", handleClick);
+            removeTrackingIndicator();
+            isTrackingActive = false; // mark as inactive
+        } else {
+            console.log("Tracking was not active");
+        }
     }
 });
 
