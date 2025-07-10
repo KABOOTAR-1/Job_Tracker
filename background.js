@@ -1,5 +1,12 @@
+let trackingTabs = {};
 
-let trackingTabs = {}; 
+// Add this at the start to restore tracking state
+chrome.storage.local.get(['trackingTabs'], (result) => {
+    if (result.trackingTabs) {
+        trackingTabs = result.trackingTabs;
+    }
+});
+
 chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
     const tabId = msg.tabId || sender.tab.id;
 
@@ -61,8 +68,11 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
     }
 });
 
+// Modify enableTracking function
 function enableTracking(tabId) {
     trackingTabs[tabId] = true;
+    // Persist tracking state
+    chrome.storage.local.set({ trackingTabs });
     console.log(`Tracking ENABLED on tab ${tabId}`);
     
     // Only try to send a message if we have a valid numeric tab ID
@@ -87,6 +97,8 @@ function enableTracking(tabId) {
 
 function disableTracking(tabId) {
     delete trackingTabs[tabId];
+    // Persist tracking state
+    chrome.storage.local.set({ trackingTabs });
     console.log(`Tracking DISABLED on tab ${tabId}`);
     
     // Only try to send a message if we have a valid numeric tab ID
@@ -116,9 +128,17 @@ chrome.tabs.onRemoved.addListener((tabId) => {
     }
 });
 
-// Auto disable on page navigation
-chrome.tabs.onUpdated.addListener((tabId, changeInfo) => {
+// Replace the tab update listener
+chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
     if (changeInfo.status === "loading" && trackingTabs[tabId]) {
-        disableTracking(tabId);
+        // Only disable tracking if the URL has changed
+        chrome.tabs.get(tabId, (currentTab) => {
+            if (currentTab.url !== tab.url) {
+                disableTracking(tabId);
+            } else if (changeInfo.status === "complete") {
+                // Reinitialize tracking on the same URL
+                enableTracking(tabId);
+            }
+        });
     }
 });

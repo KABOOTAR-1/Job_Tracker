@@ -13,14 +13,29 @@ function showApplyPrompt() {
         });
         
         // Add tracking indicator on the page
-        const trackingIndicator = document.createElement('div');
-        trackingIndicator.textContent = "✓ Job Tracker Active";
-        trackingIndicator.style.cssText = "position: fixed; top: 10px; right: 10px; background: #4CAF50; color: white; padding: 5px 10px; border-radius: 3px; z-index: 9999;";
-        document.body.appendChild(trackingIndicator);
+        addTrackingIndicator();
     } else {
         console.log("User declined job application prompt");
     }
 }
+
+function addTrackingIndicator() {
+    // Remove existing indicator if present
+    removeTrackingIndicator();
+    const trackingIndicator = document.createElement('div');
+    trackingIndicator.id = "job-tracker-active-indicator";
+    trackingIndicator.textContent = "✓ Job Tracker Active";
+    trackingIndicator.style.cssText = "position: fixed; top: 10px; right: 10px; background: #4CAF50; color: white; padding: 5px 10px; border-radius: 3px; z-index: 9999;";
+    document.body.appendChild(trackingIndicator);
+}
+
+function removeTrackingIndicator() {
+    const existing = document.getElementById("job-tracker-active-indicator");
+    if (existing) {
+        existing.remove();
+    }
+}
+
 function trackClicks(e) {
     const text = e.target?.innerText?.toLowerCase();
     if (text && containsApplyText(text)) {
@@ -108,8 +123,10 @@ if (["jobs", "careers", "apply", "opportunities"].some(k => url.includes(k))) {
 chrome.runtime.onMessage.addListener((msg) => {
     if (msg.action === "startTracking") {
         document.addEventListener("click", trackClicks);
+        addTrackingIndicator();
     }
     if (msg.action === "stopTracking") {
         document.removeEventListener("click", trackClicks);
+        removeTrackingIndicator();
     }
 });
