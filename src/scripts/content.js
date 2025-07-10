@@ -2,7 +2,7 @@
 function showApplyPrompt() {
     if (confirm("Are you trying to apply for a job on this site?")) {
         console.log("User confirmed job application, enabling tracking...");
-        
+
         // Simplify the message to just the action
         chrome.runtime.sendMessage({ action: "enableTracking" }, (response) => {
             if (chrome.runtime.lastError) {
@@ -11,7 +11,7 @@ function showApplyPrompt() {
                 console.log("Tracking enabled successfully:", response);
             }
         });
-        
+
         // Add tracking indicator on the page
         addTrackingIndicator();
     } else {
@@ -122,11 +122,23 @@ if (["jobs", "careers", "apply", "opportunities"].some(k => url.includes(k))) {
 // Listen for start/stop tracking commands from background.js
 chrome.runtime.onMessage.addListener((msg) => {
     if (msg.action === "startTracking") {
-        document.addEventListener("click", trackClicks);
+        console.log("Tracking started");
+        document.addEventListener("click", handleClick);
         addTrackingIndicator();
     }
     if (msg.action === "stopTracking") {
-        document.removeEventListener("click", trackClicks);
+        console.log("Tracking stopped");
+        document.removeEventListener("click", handleClick);
         removeTrackingIndicator();
     }
 });
+
+function handleClick(e) {
+    const el = e.target.closest('button, [role="button"], input[type="submit"], .btn'); 
+    //console.log("Button clicked:", el)// check actual buttons or styled ones
+    if (el) {
+        console.log("Button clicked:", el);
+        trackClicks(e);
+    }
+}
+

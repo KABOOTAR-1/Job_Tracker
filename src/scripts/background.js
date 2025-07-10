@@ -1,11 +1,68 @@
 let trackingTabs = {};
 
+// Backend API URL - change this to your actual API URL
+const API_BASE_URL = 'http://localhost:5000/api';
+
 // Add this at the start to restore tracking state
 chrome.storage.local.get(['trackingTabs'], (result) => {
     if (result.trackingTabs) {
         trackingTabs = result.trackingTabs;
     }
 });
+
+// Function to save company data to the backend
+async function saveCompanyToBackend(companyData) {
+    try {
+        const response = await fetch(`${API_BASE_URL}/companies`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(companyData)
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            console.log(`Company saved to backend: ${companyData.name}`, data.data);
+            
+            // Show notification to user
+            chrome.notifications.create({
+                type: 'basic',
+                iconUrl: 'src/assets/icon-48.png',
+                title: 'Job Application Tracked',
+                message: `Successfully saved application to ${companyData.name}`
+            });
+        } else {
+            throw new Error(data.message || 'Failed to save company data');
+        }
+    } catch (error) {
+        console.error('Error saving to backend:', error.message);
+        
+        // Fall back to local storage if backend fails
+        fallbackToLocalStorage(companyData);
+    }
+}
+
+// Fallback function to use local storage if backend is unavailable
+function fallbackToLocalStorage(companyData) {
+    console.log('Falling back to local storage');
+    chrome.storage.local.set({ [companyData.name]: Date.now() }, () => {
+        if (chrome.runtime.lastError) {
+            console.error(`Error saving company locally: ${chrome.runtime.lastError.message}`);
+        } else {
+            console.log(`Company saved locally as fallback: ${companyData.name}`);
+            
+            // Show notification to user about fallback
+            chrome.notifications.create({
+                type: 'basic',
+                iconUrl: 'src/assets/icon-48.png',
+                title: 'Local Backup Created',
+                message: `Saved ${companyData.name} locally (backend unavailable)`
+            });
+        }
+    });
+}
 
 chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
     const tabId = msg.tabId || sender.tab.id;
@@ -42,26 +99,20 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
     if (msg.action === "saveCompany" && msg.company) {
         console.log(`Company detected: ${msg.company}`);
         
-        // Check if company already exists in storage
-        chrome.storage.local.get([msg.company], (result) => {
-            if (result[msg.company]) {
-                console.log(`Company already in storage: ${msg.company} (first tracked on ${new Date(result[msg.company]).toLocaleString()})`);
-            } else {
-                const timestamp = Date.now();
-                chrome.storage.local.set({ [msg.company]: timestamp }, () => {
-                    if (chrome.runtime.lastError) {
-                        console.error(`Error saving company: ${chrome.runtime.lastError.message}`);
-                    } else {
-                        console.log(`NEW COMPANY SAVED: ${msg.company} at ${new Date(timestamp).toLocaleString()}`);
-                        
-                        // Get the count of all tracked companies
-                        chrome.storage.local.get(null, (allData) => {
-                            const companyCount = Object.keys(allData).length;
-                            console.log(`Total companies tracked: ${companyCount}`);
-                        });
-                    }
-                });
-            }
+        // Get current tab URL to save with company data
+        const tabId = sender.tab.id;
+        chrome.tabs.get(tabId, (tab) => {
+            const companyData = {
+                name: msg.company,
+                url: tab.url,
+                applicationDate: new Date(),
+                status: 'applied',
+                notes: `Applied via ${tab.title}`,
+                browserIdentifier: chrome.runtime.id // Use extension ID as identifier
+            };
+            
+            // Send to backend API
+            saveCompanyToBackend(companyData);
         });
         
         return true; // Indicate we'll send an async response
