@@ -52,7 +52,7 @@ Provide analysis in this exact JSON format:
 
     // Define a list of models to try in order of preference
     const models = [
-    "meta-llama/Llama-3.1-8B-Instruct"
+    "deepseek-ai/DeepSeek-R1-0528"
     ];
     
     // Try each model until one works
