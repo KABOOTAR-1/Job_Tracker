@@ -5,6 +5,7 @@ const morgan = require('morgan');
 const connectDB = require('./src/config/db');
 
 const companyRoutes = require('./src/routes/companyRoutes');
+const resumeRoutes = require('./src/routes/resumeRoutes');
 
 const { errorHandler } = require('./src/middleware/errorMiddleware');
 
@@ -15,6 +16,7 @@ app.use(cors());
 app.use(express.json());
 app.use(morgan('dev'));
 app.use('/api/companies', companyRoutes);
+app.use('/api/resume', resumeRoutes);
 
 app.get('/health', (req, res) => {
   res.status(200).json({ status: 'OK', message: 'Server is running' });
