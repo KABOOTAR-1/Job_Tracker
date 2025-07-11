@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Resume Manager</title>
+    <link rel="stylesheet" href="../styles/popup.css">
+    <link rel="stylesheet" href="../styles/resume.css">
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500&display=swap" rel="stylesheet">
+</head>
+<body>
+    <header>
+        <h1>Resume Manager</h1>
+        <div class="nav-buttons">
+            <a href="popup.html" class="nav-button">Applications</a>
+        </div>
+    </header>
+    
+    <main>
+        <div class="tabs">
+            <button class="tab-button active" data-tab="resume-tab">My Resume</button>
+            <button class="tab-button" data-tab="analyze-tab">Analyze Job Description</button>
+        </div>
+        
+        <div id="resume-tab" class="tab-content active">
+            <div class="resume-upload">
+                <h2>Upload Your Resume</h2>
+                <p>Upload your resume to enable job description analysis and improvement suggestions.</p>
+                
+                <div class="upload-area">
+                    <div class="file-input-container">
+                        <input type="file" id="resume-file" accept="application/pdf" />
+                        <label for="resume-file" class="file-label">
+                            <span class="file-icon">📄</span>
+                            <span class="file-text">Choose PDF Resume</span>
+                        </label>
+                        <p class="file-name" id="selected-file">No file selected</p>
+                    </div>
+                    <div class="resume-actions">
+                        <button id="save-resume" class="primary-button">Upload Resume</button>
+                    </div>
+                </div>
+                
+                <div id="resume-status" class="status-message"></div>
+                
+                <div id="current-resume" class="current-resume hidden">
+                    <h3>Current Resume</h3>
+                    <div class="resume-info">
+                        <p>Last updated: <span id="resume-date">Never</span></p>
+                    </div>
+                    <div id="resume-preview"></div>
+                </div>
+            </div>
+        </div>
+        
+        <div id="analyze-tab" class="tab-content">
+            <div class="analyze-job">
+                <h2>Analyze Job Description</h2>
+                <p>Paste a job description below to analyze it against your resume.</p>
+                
+                <div class="upload-area">
+                    <textarea id="job-description" placeholder="Paste job description here..."></textarea>
+                    <div class="job-actions">
+                        <button id="analyze-job" class="primary-button">Analyze Job Description</button>
+                    </div>
+                </div>
+                
+                <div id="analysis-status" class="status-message"></div>
+                
+                <div id="analysis-results" class="analysis-results hidden">
+                    <div class="result-section">
+                        <h3>Match Score</h3>
+                        <div class="match-score">
+                            <div class="score-gauge">
+                                <div id="score-value" class="score-value"></div>
+                            </div>
+                            <div id="score-percentage" class="score-percentage">0%</div>
+                        </div>
+                    </div>
+                    
+                    <div class="result-section">
+                        <h3>Suggested Improvements</h3>
+                        <ul id="improvements-list" class="improvements-list"></ul>
+                    </div>
+                    
+                    <div class="result-columns">
+                        <div class="result-section half-width">
+                            <h3>Matching Skills</h3>
+                            <ul id="matching-skills" class="skills-list"></ul>
+                        </div>
+                        
+                        <div class="result-section half-width">
+                            <h3>Missing Skills</h3>
+                            <ul id="missing-skills" class="skills-list"></ul>
+                        </div>
+                    </div>
+                    
+                    <div class="result-section">
+                        <h3>Recommendation</h3>
+                        <p id="recommendation" class="recommendation"></p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <footer>
+        <div class="footer-message">Your resume is stored securely on the backend.</div>
+    </footer>
+
+    <script src="../scripts/resume.js"></script>
+</body>
+</html>
