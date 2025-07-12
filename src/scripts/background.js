@@ -187,12 +187,16 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
                 return;
             }
             
-            // Get current tab URL to save with company data
+            // Get current tab information
             const tabId = sender.tab.id;
             chrome.tabs.get(tabId, (tab) => {
+                // Use URL from message if provided (for SPAs), otherwise fall back to tab URL
+                const jobUrl = msg.url || tab.url;
+                console.log(`Using job URL: ${jobUrl} (SPA detected: ${!!msg.url})`);
+                
                 const companyData = {
                     name: msg.company,
-                    url: tab.url,
+                    url: jobUrl,
                     applicationDate: new Date(),
                     status: 'applied',
                     notes: `Applied via ${tab.title}`,

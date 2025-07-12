@@ -45,7 +45,11 @@ function trackClicks(e) {
             console.log(`Sending company to background: ${companyName}`);
             try {
                 // No response callback - this is fire-and-forget
-                chrome.runtime.sendMessage({ action: "saveCompany", company: companyName });
+                chrome.runtime.sendMessage({ 
+                    action: "saveCompany", 
+                    company: companyName,
+                    url: window.location.href // Include the current URL of the job page
+                });
                 console.log(`Company ${companyName} sent to background script`);
             } catch (err) {
                 console.error(`Error sending company data: ${err.message}`);
@@ -124,14 +128,42 @@ function getCompanyName() {
 }
 
 
-// Ask user when on job page
-const url = window.location.href.toLowerCase();
-if (["jobs", "careers", "apply", "opportunities"].some(k => url.includes(k))) {
+// Function to check if current URL is a job page
+function checkIfJobPage() {
+    const url = window.location.href.toLowerCase();
+    return ["jobs", "careers", "apply", "opportunities", "position", "posting", "vacancy"].some(k => url.includes(k));
+}
+
+// Ask user when on job page initially
+if (checkIfJobPage()) {
     showApplyPrompt();
 }
 
+// Set up SPA URL change detection
+let lastUrl = location.href; 
+const urlObserver = new MutationObserver(() => {
+    if (location.href !== lastUrl) {
+        lastUrl = location.href;
+        console.log('URL changed to:', lastUrl);
+        // Check if the new URL is a job page
+        if (checkIfJobPage()) {
+            console.log('SPA navigation: Detected job page');
+            // Only prompt if not already tracking
+            if (!isTrackingActive) {
+                showApplyPrompt();
+            } else {
+                console.log('Already tracking this job page');
+            }
+        }
+    }
+});
+
+// Start observing changes in the DOM
+urlObserver.observe(document, { subtree: true, childList: true });
+
 // Listen for start/stop tracking commands from background.js
 let isTrackingActive = false;
+let dynamicButtonObserver = null;
 
 chrome.runtime.onMessage.addListener((msg) => {
     if (msg.action === "startTracking") {
@@ -140,6 +172,12 @@ chrome.runtime.onMessage.addListener((msg) => {
             document.addEventListener("click", handleClick);
             addTrackingIndicator();
             isTrackingActive = true; // mark as active
+            
+            // Set up observer for dynamically added apply buttons
+            dynamicButtonObserver = setupDynamicButtonObserver();
+            
+            // Check if any apply buttons exist on page load
+            scanForApplyButtons();
         } else {
             console.log("Tracking is already active");
         }
@@ -149,6 +187,13 @@ chrome.runtime.onMessage.addListener((msg) => {
         if (isTrackingActive) {
             console.log("Tracking stopped");
             document.removeEventListener("click", handleClick);
+            
+            // Disconnect the observer
+            if (dynamicButtonObserver) {
+                dynamicButtonObserver.disconnect();
+                dynamicButtonObserver = null;
+            }
+            
             removeTrackingIndicator();
             isTrackingActive = false; // mark as inactive
         } else {
@@ -157,12 +202,62 @@ chrome.runtime.onMessage.addListener((msg) => {
     }
 });
 
+// Function to scan for apply buttons on page load or after SPA navigation
+function scanForApplyButtons() {
+    if (!isTrackingActive) return;
+    
+    console.log('Scanning for apply buttons in current page');
+    const possibleButtons = document.querySelectorAll('button, [role="button"], input[type="submit"], .btn, a[href*="apply"]');
+    
+    possibleButtons.forEach(button => {
+        const text = button.innerText?.toLowerCase();
+        if (text && containsApplyText(text)) {
+            console.log('Found apply button:', button);
+            // We don't need to add click listeners here as the global document listener will catch them
+        }
+    });
+}
+
 function handleClick(e) {
-    const el = e.target.closest('button, [role="button"], input[type="submit"], .btn'); 
-    console.log("Button clicked:", el)// check actual buttons or styled ones
+    const el = e.target.closest('button, [role="button"], input[type="submit"], .btn, a[href*="apply"]'); 
     if (el) {
-        //console.log("Button clicked:", el);
+        console.log("Potential apply element clicked:", el);
         trackClicks(e);
     }
+}
+
+// Set up observer to detect dynamically added apply buttons in SPAs
+function setupDynamicButtonObserver() {
+    if (isTrackingActive) {
+        console.log('Setting up dynamic button observer');
+        
+        const buttonObserver = new MutationObserver((mutations) => {
+            for (const mutation of mutations) {
+                if (mutation.addedNodes.length > 0) {
+                    // Check for buttons with apply-related text
+                    mutation.addedNodes.forEach(node => {
+                        if (node.nodeType === Node.ELEMENT_NODE) {
+                            // Look for buttons or elements that look like buttons
+                            const applyButtons = node.querySelectorAll('button, [role="button"], input[type="submit"], .btn, a[href*="apply"]');
+                            
+                            applyButtons.forEach(button => {
+                                const text = button.innerText?.toLowerCase();
+                                if (text && containsApplyText(text)) {
+                                    console.log('SPA: Dynamically added apply button detected', button);
+                                    // Add click listener to this specific button
+                                    button.addEventListener('click', handleClick);
+                                }
+                            });
+                        }
+                    });
+                }
+            }
+        });
+        
+        // Observe entire document for added nodes
+        buttonObserver.observe(document.body, { childList: true, subtree: true });
+        return buttonObserver;
+    }
+    return null;
 }
 
