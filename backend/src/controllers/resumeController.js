@@ -4,7 +4,7 @@ const pdfParse = require('pdf-parse');
 
 // @desc    Upload or update a resume
 // @route   POST /api/resume
-// @access  Public
+// @access  Private
 const uploadResume = async (req, res) => {
   try {
     if (!req.file) {
@@ -13,15 +13,9 @@ const uploadResume = async (req, res) => {
         message: 'PDF file is required'
       });
     }
-
-    const { browserIdentifier } = req.body;
     
-    if (!browserIdentifier) {
-      return res.status(400).json({
-        success: false,
-        message: 'Browser identifier is required'
-      });
-    }
+    // Get user ID from the authenticated user
+    const userId = req.user._id;
 
     // Extract text content from PDF
     const pdfBuffer = req.file.buffer;
@@ -35,12 +29,13 @@ const uploadResume = async (req, res) => {
       });
     }
     
-    // Update if exists, otherwise create new
+    // Update if exists for this user, otherwise create new
     const resume = await Resume.findOneAndUpdate(
-      { browserIdentifier },
+      { user: userId },
       { 
         content, 
-        browserIdentifier, 
+        user: userId,
+        browserIdentifier: req.body.browserIdentifier || req.user.browserIdentifier, 
         fileName: req.file.originalname,
         fileType: req.file.mimetype,
         fileSize: req.file.size,
@@ -70,21 +65,15 @@ const uploadResume = async (req, res) => {
   }
 };
 
-// @desc    Get resume by browser identifier
-// @route   GET /api/resume/:browserIdentifier
-// @access  Public
+// @desc    Get resume for authenticated user
+// @route   GET /api/resume/me
+// @access  Private
 const getResume = async (req, res) => {
   try {
-    const { browserIdentifier } = req.params;
+    // Get user ID from authenticated user
+    const userId = req.user._id;
 
-    if (!browserIdentifier) {
-      return res.status(400).json({
-        success: false,
-        message: 'Browser identifier is required'
-      });
-    }
-
-    const resume = await Resume.findOne({ browserIdentifier });
+    const resume = await Resume.findOne({ user: userId });
 
     if (!resume) {
       return res.status(404).json({
@@ -116,20 +105,21 @@ const getResume = async (req, res) => {
 
 // @desc    Analyze job description against stored resume
 // @route   POST /api/resume/analyze
-// @access  Public
+// @access  Private
 const analyzeJobDescription = async (req, res) => {
   try {
-    const { jobDescription, browserIdentifier } = req.body;
+    const { jobDescription } = req.body;
 
-    if (!jobDescription || !browserIdentifier) {
+    if (!jobDescription) {
       return res.status(400).json({
         success: false,
-        message: 'Job description and browser identifier are required'
+        message: 'Job description is required'
       });
     }
 
-    // Find user's resume
-    const resume = await Resume.findOne({ browserIdentifier });
+    // Find user's resume using authenticated user ID
+    const userId = req.user._id;
+    const resume = await Resume.findOne({ user: userId });
     
     if (!resume) {
       return res.status(404).json({

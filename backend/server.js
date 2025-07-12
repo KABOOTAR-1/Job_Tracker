@@ -6,6 +6,8 @@ const connectDB = require('./src/config/db');
 
 const companyRoutes = require('./src/routes/companyRoutes');
 const resumeRoutes = require('./src/routes/resumeRoutes');
+const userRoutes = require('./src/routes/userRoutes');
+const authRoutes = require('./src/routes/authRoutes');
 
 const { errorHandler } = require('./src/middleware/errorMiddleware');
 
@@ -17,6 +19,8 @@ app.use(express.json());
 app.use(morgan('dev'));
 app.use('/api/companies', companyRoutes);
 app.use('/api/resume', resumeRoutes);
+app.use('/api/users', userRoutes);
+app.use('/api/auth', authRoutes);
 
 app.get('/health', (req, res) => {
   res.status(200).json({ status: 'OK', message: 'Server is running' });

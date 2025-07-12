@@ -6,9 +6,13 @@ const resumeSchema = new mongoose.Schema(
       type: String,
       required: [true, 'Resume content is required'],
     },
+    user: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User',
+      required: [true, 'User is required']
+    },
     browserIdentifier: {
       type: String,
-      required: [true, 'Browser identifier is required'],
       trim: true,
       index: true
     },

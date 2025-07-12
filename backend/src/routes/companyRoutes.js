@@ -7,6 +7,10 @@ const {
   updateCompany, 
   deleteCompany 
 } = require('../controllers/companyController');
+const { protect } = require('../middleware/authMiddleware');
+
+// All company routes require authentication
+router.use(protect);
 
 router.route('/')
   .get(getCompanies)
