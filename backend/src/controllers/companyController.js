@@ -4,7 +4,6 @@ const User = require('../models/userModel');
 
 const getCompanies = async (req, res, next) => {
   try {
-    // Get companies for the authenticated user
     const user = await User.findById(req.user.id).populate('companies');
     
     if (!user) {
@@ -14,8 +13,6 @@ const getCompanies = async (req, res, next) => {
       });
     }
     
-    // If companies are populated, we can return them directly
-    // Otherwise, find companies by ID from the user's companies array
     let companies;
     if (user.companies[0] && typeof user.companies[0] !== 'string') {
       companies = user.companies;
@@ -50,7 +47,6 @@ const getCompany = async (req, res, next) => {
       });
     }
     
-    // Check if the company belongs to the authenticated user
     const user = await User.findById(req.user.id);
     if (!user || !user.companies.includes(company._id)) {
       return res.status(403).json({
@@ -74,7 +70,6 @@ const getCompany = async (req, res, next) => {
 
 const createCompany = async (req, res, next) => {
   try {
-    // Find the user by ID
     const user = await User.findById(req.user.id);
     if (!user) {
       return res.status(404).json({
@@ -83,12 +78,10 @@ const createCompany = async (req, res, next) => {
       });
     }
     
-    // Set browserIdentifier from user if available
     if (user.browserIdentifier && !req.body.browserIdentifier) {
       req.body.browserIdentifier = user.browserIdentifier;
     }
-    
-    // Ensure we have a company name
+
     if (!req.body.name) {
       return res.status(400).json({
         success: false,
@@ -96,13 +89,10 @@ const createCompany = async (req, res, next) => {
       });
     }
 
-    // Set up filter to check for existing companies
     const filter = { name: req.body.name };
     if (req.body.browserIdentifier) {
       filter.browserIdentifier = req.body.browserIdentifier;
     }
-    
-    // Check if company already exists for this user
     const userCompanyIds = user.companies.map(id => id.toString());
     const existingCompanies = await Company.find(filter);
     const existingCompany = existingCompanies.find(company => 
@@ -113,7 +103,6 @@ const createCompany = async (req, res, next) => {
     let statusCode = 201; 
     
     if (existingCompany) {
-      // Update existing company
       company = await Company.findByIdAndUpdate(
         existingCompany._id,
         { 
@@ -125,13 +114,11 @@ const createCompany = async (req, res, next) => {
       statusCode = 200; 
       console.log(`Updated existing company: ${req.body.name}`);
     } else {
-      // Create new company with user ID
       company = await Company.create({
         ...req.body,
-        user: req.user.id // Associate company with user
+        user: req.user.id 
       });
       
-      // Add company ID to user's companies array
       user.companies.push(company._id);
       await user.save();
       
@@ -163,7 +150,6 @@ const updateCompany = async (req, res, next) => {
       });
     }
 
-    // Check if the company belongs to the authenticated user
     const user = await User.findById(req.user.id);
     if (!user || !user.companies.includes(company._id)) {
       return res.status(403).json({
@@ -202,7 +188,6 @@ const deleteCompany = async (req, res, next) => {
       });
     }
     
-    // Check if the company belongs to the authenticated user
     const user = await User.findById(req.user.id);
     if (!user || !user.companies.includes(company._id)) {
       return res.status(403).json({
@@ -211,13 +196,11 @@ const deleteCompany = async (req, res, next) => {
       });
     }
     
-    // Remove company ID from user's companies array
     user.companies = user.companies.filter(
       companyId => companyId.toString() !== company._id.toString()
     );
     await user.save();
 
-    // Delete the company
     await company.deleteOne();
 
     res.status(200).json({

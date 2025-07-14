@@ -1,10 +1,6 @@
 const User = require('../models/userModel');
 const jwt = require('jsonwebtoken');
 
-/**
- * Authenticate browser extension using browserIdentifier
- * Create a new user if needed and return JWT token
- */
 const authenticateExtension = async (req, res) => {
   try {
     const { browserIdentifier } = req.body;
@@ -16,13 +12,10 @@ const authenticateExtension = async (req, res) => {
       });
     }
 
-    // Check if user with this browserIdentifier exists
     let user = await User.findOne({ browserIdentifier });
     
-    // If no user exists with this browserIdentifier, create one
     if (!user) {
-      // Create a temporary username/email based on the browserIdentifier
-      // Generate a random secure password
+
       const tempPassword = Math.random().toString(36).slice(-10) + 
                          Math.random().toString(36).slice(-10);
       
@@ -34,7 +27,6 @@ const authenticateExtension = async (req, res) => {
       });
     }
     
-    // Generate and return JWT token
     const token = user.generateToken();
     
     res.status(200).json({
@@ -52,9 +44,7 @@ const authenticateExtension = async (req, res) => {
   }
 };
 
-/**
- * Associate an existing user account with a browser extension
- */
+
 const linkExtensionToAccount = async (req, res) => {
   try {
     const { browserIdentifier } = req.body;
@@ -66,7 +56,6 @@ const linkExtensionToAccount = async (req, res) => {
       });
     }
     
-    // Get user from auth middleware
     const user = await User.findById(req.user._id);
     
     if (!user) {
@@ -76,7 +65,6 @@ const linkExtensionToAccount = async (req, res) => {
       });
     }
     
-    // Update the user's browserIdentifier
     user.browserIdentifier = browserIdentifier;
     await user.save();
     

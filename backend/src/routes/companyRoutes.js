@@ -9,7 +9,6 @@ const {
 } = require('../controllers/companyController');
 const { protect } = require('../middleware/authMiddleware');
 
-// All company routes require authentication
 router.use(protect);
 
 router.route('/')

@@ -17,7 +17,7 @@ const userSchema = new mongoose.Schema(
     email: {
       type: String,
       unique: true,
-      sparse: true, // Allows multiple null values (for users without email)
+      sparse: true,
       trim: true,
       lowercase: true,
       match: [/^\w+([\.-]?\w+)*@\w+([\.-]?\w+)*(\.\w{2,3})+$/, 'Please provide a valid email']
@@ -41,7 +41,6 @@ const userSchema = new mongoose.Schema(
   }
 );
 
-// Hash password before saving
 userSchema.pre('save', async function(next) {
   if (!this.isModified('password')) {
     return next();
@@ -52,18 +51,15 @@ userSchema.pre('save', async function(next) {
   next();
 });
 
-// Method to check password
 userSchema.methods.matchPassword = async function(enteredPassword) {
   return await bcrypt.compare(enteredPassword, this.password);
 };
-
-// Method to generate JWT token
 userSchema.methods.generateToken = function() {
   return jwt.sign({ 
     id: this._id,
     username: this.username 
   }, process.env.JWT_SECRET, {
-    expiresIn: '30d' // Token expiry set to 30 days
+    expiresIn: '30d'
   });
 };
 
