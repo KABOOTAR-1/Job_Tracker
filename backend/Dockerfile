@@ -2,14 +2,14 @@ FROM node:20
 
 WORKDIR /app
 
-COPY package*.json ./
-RUN npm install
-
+# Copy everything from the current context
 COPY . .
+
+# Install dependencies
+RUN npm install
 
 EXPOSE 5000
 
-# Set environment variables (override in docker-compose or at runtime)
 ENV NODE_ENV=production
 
 CMD ["node", "server.js"]
