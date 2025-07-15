@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Job Tracker</title>
+    <link rel="stylesheet" href="../styles/popup.css">
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500&display=swap" rel="stylesheet">
+</head>
+<body>
+    <header>
+        <h1>Job Tracker</h1>
+        <div class="nav-actions">
+            <a href="resume.html" class="nav-link">Resume Manager</a>
+            <button id="toggleTracking" class="tracking-button">Loading...</button>
+        </div>
+    </header>
+    
+    <main>
+        <div class="filter-bar">
+            <select id="statusFilter">
+                <option value="all">All Statuses</option>
+                <option value="applied">Applied</option>
+                <option value="interviewing">Interviewing</option>
+                <option value="offered">Offered</option>
+                <option value="rejected">Rejected</option>
+            </select>
+            <div class="sort-options">
+                <label>Sort by:</label>
+                <select id="sortBy">
+                    <option value="date-desc">Newest First</option>
+                    <option value="date-asc">Oldest First</option>
+                    <option value="company-asc">Company A-Z</option>
+                    <option value="company-desc">Company Z-A</option>
+                </select>
+            </div>
+        </div>
+
+        <div class="applications-container">
+            <div id="loading" class="loading">Loading applications...</div>
+            <div id="error" class="error hidden">Could not load applications.</div>
+            <div id="empty" class="empty hidden">No job applications found. Start applying!</div>
+            <div id="applications" class="applications-list"></div>
+        </div>
+    </main>
+
+    <footer>
+        <button id="refreshButton" class="refresh-button">Refresh</button>
+        <span class="stats">Total: <span id="totalApplications">0</span></span>
+    </footer>
+
+    <template id="application-template">
+        <div class="application-card">
+            <div class="company-header">
+                <h3 class="company-name"></h3>
+                <span class="application-date"></span>
+            </div>
+            <div class="application-details">
+                <div class="status-badge"></div>
+                <a href="#" class="company-url" target="_blank">View Job</a>
+            </div>
+            <div class="application-notes"></div>
+        </div>
+    </template>
+
+    <script src="../scripts/popup.js"></script>
+</body>
+</html>
