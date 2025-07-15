@@ -24,10 +24,7 @@ const companySchema = new mongoose.Schema(
       type: String,
       trim: true
     },
-    browserIdentifier: {
-      type: String,
-      trim: true
-    },
+    // browserIdentifier field removed
     user: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'User'

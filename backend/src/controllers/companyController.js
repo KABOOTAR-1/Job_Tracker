@@ -78,9 +78,7 @@ const createCompany = async (req, res, next) => {
       });
     }
     
-    if (user.browserIdentifier && !req.body.browserIdentifier) {
-      req.body.browserIdentifier = user.browserIdentifier;
-    }
+    // User authentication is handled through JWT token, no browser identifier needed
 
     if (!req.body.name) {
       return res.status(400).json({
@@ -89,40 +87,64 @@ const createCompany = async (req, res, next) => {
       });
     }
 
-    const filter = { name: req.body.name };
-    if (req.body.browserIdentifier) {
-      filter.browserIdentifier = req.body.browserIdentifier;
-    }
+    // First, get all the user's companies to check for duplicates
     const userCompanyIds = user.companies.map(id => id.toString());
-    const existingCompanies = await Company.find(filter);
-    const existingCompany = existingCompanies.find(company => 
-      userCompanyIds.includes(company._id.toString())
-    );
+    const userCompanies = await Company.find({ _id: { $in: user.companies } });
     
+    // Check if the user already has a company with the EXACT same name AND URL
+    let existingSameNameAndUrl = null;
+    if (req.body.url) {
+      existingSameNameAndUrl = userCompanies.find(comp => 
+        comp.name === req.body.name && comp.url === req.body.url);
+    } else {
+      // If URL is not provided, only match by name
+      existingSameNameAndUrl = userCompanies.find(comp => comp.name === req.body.name);
+    }
+    
+    // Check if the user has a company with the same name but different URL
+    const existingSameNameDiffUrl = userCompanies.find(comp => 
+      comp.name === req.body.name && 
+      req.body.url && // Only if URL is provided
+      comp.url !== req.body.url);
+      
     let company;
-    let statusCode = 201; 
+    let statusCode = 201;
     
-    if (existingCompany) {
+    if (existingSameNameAndUrl) {
+      // If company with same name AND URL already exists for this user, update it
+      console.log(`Updating existing company: ${req.body.name} with URL: ${req.body.url || 'none'}`);
+      
       company = await Company.findByIdAndUpdate(
-        existingCompany._id,
+        existingSameNameAndUrl._id,
         { 
           ...req.body,
-          applicationDate: existingCompany.applicationDate || req.body.applicationDate
+          applicationDate: existingSameNameAndUrl.applicationDate || req.body.applicationDate
         },
         { new: true, runValidators: true }
       );
       statusCode = 200; 
-      console.log(`Updated existing company: ${req.body.name}`);
-    } else {
+    } else if (existingSameNameDiffUrl) {
+      // If company with same name but DIFFERENT URL exists, create a NEW company
+      console.log(`Creating new company version: ${req.body.name} with different URL: ${req.body.url}`);
+      
       company = await Company.create({
         ...req.body,
-        user: req.user.id 
+        user: req.user.id
       });
       
       user.companies.push(company._id);
       await user.save();
+    } else {
+      // No match found for this user, create brand new company
+      console.log(`Creating new company: ${req.body.name} with URL: ${req.body.url || 'none'}`);
       
-      console.log(`Created new company: ${req.body.name}`);
+      company = await Company.create({
+        ...req.body,
+        user: req.user.id
+      });
+      
+      user.companies.push(company._id);
+      await user.save();
     }
     
     res.status(statusCode).json({
