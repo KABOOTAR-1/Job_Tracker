@@ -37,6 +37,15 @@ header {
     background-color: #fff;
     z-index: 100;
     box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    flex-wrap: wrap;
+}
+
+.welcome-message {
+    font-size: 14px;
+    color: var(--neutral);
+    margin-top: 4px;
+    width: 100%;
+    display: block;
 }
 
 h1 {
@@ -217,6 +226,17 @@ button {
     border-radius: 4px;
     cursor: pointer;
     transition: background-color 0.2s;
+}
+
+.logout-button {
+    background-color: #f1f3f4;
+    color: var(--neutral);
+    font-size: 12px;
+    padding: 4px 10px;
+}
+
+.logout-button:hover {
+    background-color: #e8eaed;
 }
 
 .tracking-button {

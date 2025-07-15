@@ -27,6 +27,11 @@ const companySchema = new mongoose.Schema(
     browserIdentifier: {
       type: String,
       trim: true
+    },
+    user: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User'
+      // Not required to support existing records
     }
   },
   {
@@ -34,6 +39,8 @@ const companySchema = new mongoose.Schema(
   }
 );
 
+// Indexes for faster querying
 companySchema.index({ applicationDate: -1 });
+companySchema.index({ user: 1, name: 1 });
 
 module.exports = mongoose.model('Company', companySchema);

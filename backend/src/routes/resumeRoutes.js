@@ -1,20 +1,21 @@
 const express = require('express');
 const router = express.Router();
 const upload = require('../middleware/uploadMiddleware');
+const { protect } = require('../middleware/authMiddleware');
 const { 
   uploadResume, 
   getResume, 
   analyzeJobDescription 
 } = require('../controllers/resumeController');
 
-// Route for uploading resume with file upload middleware
+router.use(protect);
+
 router.route('/')
   .post(upload.single('resumeFile'), uploadResume);
 
-router.route('/:browserIdentifier')
+router.route('/me')
   .get(getResume);
 
-// Make sure /analyze comes after /:browserIdentifier to avoid routing conflicts
 router.route('/analyze')
   .post(analyzeJobDescription);
 

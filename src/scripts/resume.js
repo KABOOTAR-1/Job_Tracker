@@ -1,6 +1,11 @@
 // Constants
 const API_BASE_URL = 'http://localhost:5000/api';
 
+// Authentication constants
+const TOKEN_STORAGE_KEY = 'jt_auth_token';
+const USER_STORAGE_KEY = 'jt_user_data';
+const TOKEN_EXPIRY_KEY = 'jt_token_expiry';
+
 // DOM Elements
 const resumeFileInput = document.getElementById('resume-file');
 const selectedFileText = document.getElementById('selected-file');
@@ -27,8 +32,44 @@ const tabContents = document.querySelectorAll('.tab-content');
 // Get browser identifier (extension ID)
 const browserIdentifier = chrome.runtime.id;
 
+// Get auth token from storage
+async function getAuthToken() {
+    return new Promise((resolve) => {
+        chrome.storage.local.get([TOKEN_STORAGE_KEY], (result) => {
+            const token = result[TOKEN_STORAGE_KEY];
+            console.log('Retrieved auth token:', token ? 'Token exists' : 'No token');
+            resolve(token || null);
+        });
+    });
+}
+
+// Check if user is authenticated
+async function checkAuth() {
+    return new Promise((resolve) => {
+        chrome.storage.local.get([TOKEN_STORAGE_KEY, TOKEN_EXPIRY_KEY], (result) => {
+            const token = result[TOKEN_STORAGE_KEY];
+            const expiry = result[TOKEN_EXPIRY_KEY];
+            const now = new Date().getTime();
+            
+            const isAuthenticated = token && expiry && now < expiry;
+            console.log('Auth check:', { hasToken: !!token, isAuthenticated });
+            resolve(isAuthenticated);
+        });
+    });
+}
+
 // Initialize
-document.addEventListener('DOMContentLoaded', () => {
+document.addEventListener('DOMContentLoaded', async () => {
+    // Check authentication first
+    const isAuthenticated = await checkAuth();
+    if (!isAuthenticated) {
+        console.log('Not authenticated, redirecting to login');
+        window.location.href = 'login.html';
+        return;
+    }
+
+    console.log('Authentication verified, loading resume page');
+    
     // Load user's resume if it exists
     loadResume();
     
@@ -88,7 +129,20 @@ async function loadResume() {
     try {
         showStatus(resumeStatus, 'loading', 'Loading your resume...');
         
-        const response = await fetch(`${API_BASE_URL}/resume/${browserIdentifier}`);
+        // Get auth token
+        const token = await getAuthToken();
+        if (!token) {
+            console.error('No authentication token found when loading resume');
+            showStatus(resumeStatus, 'error', 'Authentication required. Please login again.');
+            return;
+        }
+        
+        console.log('Loading resume with authentication token');
+        const response = await fetch(`${API_BASE_URL}/resume/me`, {
+            headers: {
+                'Authorization': `Bearer ${token}`
+            }
+        });
         const data = await response.json();
         
         if (data.success) {
@@ -152,18 +206,44 @@ async function saveResume() {
             return;
         }
         
+        // Check authentication before uploading
+        const token = await getAuthToken();
+        if (!token) {
+            console.error('No authentication token found');
+            showStatus(resumeStatus, 'error', 'Authentication required. Please login again.');
+            setTimeout(() => {
+                window.location.href = 'login.html';
+            }, 2000);
+            return;
+        }
+        
         showStatus(resumeStatus, 'loading', 'Uploading your resume...');
         
         // Create form data for file upload
         const formData = new FormData();
         formData.append('resumeFile', file);
-        formData.append('browserIdentifier', browserIdentifier);
+        // No need to send browserIdentifier as the user is identified by the token
         
+        console.log('Uploading resume with authentication token');
         const response = await fetch(`${API_BASE_URL}/resume`, {
             method: 'POST',
+            headers: {
+                'Authorization': `Bearer ${token}`
+            },
             body: formData
             // No Content-Type header needed; browser sets it with boundary for FormData
         });
+        
+        // Check for specific error codes
+        if (!response.ok) {
+            if (response.status === 404) {
+                throw new Error('Resume upload service not available');
+            } else if (response.status === 401) {
+                throw new Error('Authentication failed. Please login again.');
+            } else {
+                throw new Error(`Server error: ${response.status}`);
+            }
+        }
         
         const data = await response.json();
         
@@ -194,17 +274,30 @@ async function analyzeJobDescription() {
             return;
         }
         
+        // Get auth token
+        const token = await getAuthToken();
+        if (!token) {
+            console.error('No authentication token found when analyzing job description');
+            showStatus(analysisStatus, 'error', 'Authentication required. Please login again.');
+            setTimeout(() => {
+                window.location.href = 'login.html';
+            }, 2000);
+            return;
+        }
+        
         showStatus(analysisStatus, 'loading', 'Analyzing job description... This may take a moment.');
         analysisResults.classList.add('hidden');
         
+        console.log('Analyzing job description with authentication token');
         const response = await fetch(`${API_BASE_URL}/resume/analyze`, {
             method: 'POST',
             headers: {
-                'Content-Type': 'application/json'
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
             },
             body: JSON.stringify({
-                jobDescription: description,
-                browserIdentifier
+                jobDescription: description
+                // No need to send browserIdentifier as the user is identified by the token
             })
         });
         

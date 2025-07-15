@@ -3,6 +3,11 @@ let trackingTabs = {};
 // Backend API URL - change this to your actual API URL
 const API_BASE_URL = 'http://localhost:5000/api';
 
+// Authentication storage keys
+const TOKEN_STORAGE_KEY = 'jt_auth_token';
+const USER_STORAGE_KEY = 'jt_user_data';
+const TOKEN_EXPIRY_KEY = 'jt_token_expiry';
+
 // Add this at the start to restore tracking state
 chrome.storage.local.get(['trackingTabs'], (result) => {
     if (result.trackingTabs) {
@@ -10,13 +15,52 @@ chrome.storage.local.get(['trackingTabs'], (result) => {
     }
 });
 
+// Check if user is authenticated
+async function isAuthenticated() {
+    return new Promise((resolve) => {
+        chrome.storage.local.get([TOKEN_STORAGE_KEY, TOKEN_EXPIRY_KEY], (result) => {
+            const token = result[TOKEN_STORAGE_KEY];
+            const expiry = result[TOKEN_EXPIRY_KEY];
+            const now = new Date().getTime();
+            
+            console.log('Auth check:', { 
+                hasToken: !!token, 
+                hasExpiry: !!expiry,
+                isExpired: expiry ? now >= expiry : true,
+                timeRemaining: expiry ? Math.floor((expiry - now) / (1000 * 60 * 60 * 24)) + ' days' : 'expired'
+            });
+            
+            resolve(token && expiry && now < expiry);
+        });
+    });
+}
+
+// Get auth token from storage
+async function getAuthToken() {
+    return new Promise((resolve) => {
+        chrome.storage.local.get([TOKEN_STORAGE_KEY], (result) => {
+            resolve(result[TOKEN_STORAGE_KEY] || null);
+        });
+    });
+}
+
 // Function to save company data to the backend
 async function saveCompanyToBackend(companyData) {
     try {
+        // Check authentication
+        const authenticated = await isAuthenticated();
+        if (!authenticated) {
+            throw new Error('User not authenticated');
+        }
+
+        // Get auth token
+        const token = await getAuthToken();
+        
         const response = await fetch(`${API_BASE_URL}/companies`, {
             method: 'POST',
             headers: {
-                'Content-Type': 'application/json'
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
             },
             body: JSON.stringify(companyData)
         });
@@ -64,6 +108,21 @@ function fallbackToLocalStorage(companyData) {
     });
 }
 
+// Handle auth check requests
+async function checkAndRedirectToLogin() {
+    console.log('Checking authentication status');
+    const authenticated = await isAuthenticated();
+    
+    if (!authenticated) {
+        console.log('Not authenticated, will redirect to login');
+        // We don't auto-redirect here anymore, just report status
+        return false;
+    }
+    
+    console.log('User is authenticated');
+    return true;
+}
+
 chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
     const tabId = msg.tabId || sender.tab.id;
 
@@ -91,6 +150,27 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
         return true; // Required to indicate async response
     }
 
+    if (msg.action === "checkAuth") {
+        console.log('Received checkAuth message');
+        isAuthenticated().then(status => {
+            console.log('Responding to checkAuth with status:', status);
+            sendResponse({ isAuthenticated: status });
+        }).catch(error => {
+            console.error('Error during checkAuth:', error);
+            sendResponse({ isAuthenticated: false, error: error.message });
+        });
+        return true;
+    }
+    
+    if (msg.action === "logout") {
+        console.log('Received logout message');
+        chrome.storage.local.remove([TOKEN_STORAGE_KEY, USER_STORAGE_KEY, TOKEN_EXPIRY_KEY], () => {
+            console.log('Auth data cleared from storage');
+            sendResponse({ success: true });
+        });
+        return true;
+    }
+
     if (msg.action === "getTrackingStatus") {
         sendResponse({ isTracking: !!trackingTabs[tabId] });
         return true;
@@ -99,20 +179,35 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
     if (msg.action === "saveCompany" && msg.company) {
         console.log(`Company detected: ${msg.company}`);
         
-        // Get current tab URL to save with company data
-        const tabId = sender.tab.id;
-        chrome.tabs.get(tabId, (tab) => {
-            const companyData = {
-                name: msg.company,
-                url: tab.url,
-                applicationDate: new Date(),
-                status: 'applied',
-                notes: `Applied via ${tab.title}`,
-                browserIdentifier: chrome.runtime.id // Use extension ID as identifier
-            };
+        // First check authentication
+        isAuthenticated().then(authenticated => {
+            if (!authenticated) {
+                console.log('User not authenticated, cannot save company');
+                sendResponse({ success: false, error: 'Authentication required' });
+                return;
+            }
             
-            // Send to backend API
-            saveCompanyToBackend(companyData);
+            // Get current tab information
+            const tabId = sender.tab.id;
+            chrome.tabs.get(tabId, (tab) => {
+                // Use URL from message if provided (for SPAs), otherwise fall back to tab URL
+                const jobUrl = msg.url || tab.url;
+                console.log(`Using job URL: ${jobUrl} (SPA detected: ${!!msg.url})`);
+                
+                const companyData = {
+                    name: msg.company,
+                    url: jobUrl,
+                    applicationDate: new Date(),
+                    status: 'applied',
+                    notes: `Applied via ${tab.title}`,
+                    browserIdentifier: chrome.runtime.id // Use extension ID as identifier
+                };
+                
+                // Send to backend API
+                saveCompanyToBackend(companyData)
+                    .then(() => sendResponse({ success: true }))
+                    .catch(error => sendResponse({ success: false, error: error.message }));
+            });
         });
         
         return true; // Indicate we'll send an async response

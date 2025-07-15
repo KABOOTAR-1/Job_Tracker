@@ -1,9 +1,13 @@
-// content.js
+
 function showApplyPrompt() {
+    if (userDeclinedTracking) {
+        console.log("User previously declined tracking for this tab session, not showing prompt");
+        return;
+    }
+
     if (confirm("Are you trying to apply for a job on this site?")) {
         console.log("User confirmed job application, enabling tracking...");
 
-        // Simplify the message to just the action
         chrome.runtime.sendMessage({ action: "enableTracking" }, (response) => {
             if (chrome.runtime.lastError) {
                 console.error("Error enabling tracking:", chrome.runtime.lastError.message);
@@ -12,15 +16,14 @@ function showApplyPrompt() {
             }
         });
 
-        // Add tracking indicator on the page
         addTrackingIndicator();
     } else {
         console.log("User declined job application prompt");
+        userDeclinedTracking = true;
     }
 }
 
 function addTrackingIndicator() {
-    // Remove existing indicator if present
     removeTrackingIndicator();
     const trackingIndicator = document.createElement('div');
     trackingIndicator.id = "job-tracker-active-indicator";
@@ -44,8 +47,11 @@ function trackClicks(e) {
         if (companyName) {
             console.log(`Sending company to background: ${companyName}`);
             try {
-                // No response callback - this is fire-and-forget
-                chrome.runtime.sendMessage({ action: "saveCompany", company: companyName });
+                chrome.runtime.sendMessage({ 
+                    action: "saveCompany", 
+                    company: companyName,
+                    url: window.location.href
+                });
                 console.log(`Company ${companyName} sent to background script`);
             } catch (err) {
                 console.error(`Error sending company data: ${err.message}`);
@@ -66,7 +72,6 @@ function containsApplyText(text) {
 }
 
 function getCompanyName() {
-    // LinkedIn Easy Apply header
     const applyHeader = document.querySelector('#jobs-apply-header');
     if (applyHeader && applyHeader.innerText.trim()) {
         const text = applyHeader.innerText.trim();
@@ -76,13 +81,11 @@ function getCompanyName() {
         }
     }
 
-    // LinkedIn job detail selectors
     let el = document.querySelector('.topcard__org-name-link, .topcard__flavor-row a, .topcard__flavor-row span');
     if (el && el.innerText.trim()) {
         return el.innerText.trim();
     }
 
-    // LinkedIn meta tags fallback
     const metaOgTitle = document.querySelector('meta[property="og:title"]');
     if (metaOgTitle && metaOgTitle.content) {
         const match = metaOgTitle.content.match(/at (.+)$/i);
@@ -91,25 +94,21 @@ function getCompanyName() {
         }
     }
 
-    // Generic fallback for other sites
     el = document.querySelector('.company, .company-name, [data-company], [itemprop="hiringOrganization"]');
     if (el && el.innerText.trim()) {
         return el.innerText.trim();
     }
 
-    // Meta tag fallback
     const metaCompany = document.querySelector('meta[name="company"]');
     if (metaCompany && metaCompany.content) {
         return metaCompany.content.trim();
     }
 
-    // ✅ NEW: Look for company name in image alt tags
     const logoImg = document.querySelector('img[alt*="logo"], img[alt*="Logo"]');
     if (logoImg && logoImg.alt) {
         return logoImg.alt.replace(/logo/i, '').trim();
     }
 
-    // ✅ NEW: Look for label "Brand:" or similar and get next sibling text
     const brandLabel = Array.from(document.querySelectorAll('span, div')).find(el =>
         el.innerText && el.innerText.trim().match(/Brand:/i)
     );
@@ -120,18 +119,42 @@ function getCompanyName() {
         }
     }
 
-    return null; // No company found
+    return null; 
 }
 
 
-// Ask user when on job page
-const url = window.location.href.toLowerCase();
-if (["jobs", "careers", "apply", "opportunities"].some(k => url.includes(k))) {
+function checkIfJobPage() {
+    const url = window.location.href.toLowerCase();
+    return ["jobs", "careers", "apply", "opportunities", "position", "posting", "vacancy"].some(k => url.includes(k));
+}
+
+let userDeclinedTracking = false;
+if (checkIfJobPage()) {
     showApplyPrompt();
 }
 
-// Listen for start/stop tracking commands from background.js
+let lastUrl = location.href; 
+const urlObserver = new MutationObserver(() => {
+    if (location.href !== lastUrl) {
+        lastUrl = location.href;
+        console.log('URL changed to:', lastUrl);
+        // Check if the new URL is a job page
+        if (checkIfJobPage()) {
+            console.log('SPA navigation: Detected job page');
+            // Only prompt if not already tracking AND user hasn't declined
+            if (!isTrackingActive && !userDeclinedTracking) {
+                showApplyPrompt();
+            } else {
+                console.log('Already tracking this job page or user declined tracking');
+            }
+        }
+    }
+});
+
+urlObserver.observe(document, { subtree: true, childList: true });
+
 let isTrackingActive = false;
+let dynamicButtonObserver = null;
 
 chrome.runtime.onMessage.addListener((msg) => {
     if (msg.action === "startTracking") {
@@ -139,7 +162,10 @@ chrome.runtime.onMessage.addListener((msg) => {
             console.log("Tracking started");
             document.addEventListener("click", handleClick);
             addTrackingIndicator();
-            isTrackingActive = true; // mark as active
+            isTrackingActive = true; 
+            dynamicButtonObserver = setupDynamicButtonObserver();
+            
+            scanForApplyButtons();
         } else {
             console.log("Tracking is already active");
         }
@@ -149,20 +175,68 @@ chrome.runtime.onMessage.addListener((msg) => {
         if (isTrackingActive) {
             console.log("Tracking stopped");
             document.removeEventListener("click", handleClick);
+            
+            if (dynamicButtonObserver) {
+                dynamicButtonObserver.disconnect();
+                dynamicButtonObserver = null;
+            }
+            
             removeTrackingIndicator();
-            isTrackingActive = false; // mark as inactive
+            isTrackingActive = false; 
         } else {
             console.log("Tracking was not active");
         }
     }
 });
 
+function scanForApplyButtons() {
+    if (!isTrackingActive) return;
+    
+    console.log('Scanning for apply buttons in current page');
+    const possibleButtons = document.querySelectorAll('button, [role="button"], input[type="submit"], .btn, a[href*="apply"]');
+    
+    possibleButtons.forEach(button => {
+        const text = button.innerText?.toLowerCase();
+        if (text && containsApplyText(text)) {
+            console.log('Found apply button:', button);
+        }
+    });
+}
+
 function handleClick(e) {
-    const el = e.target.closest('button, [role="button"], input[type="submit"], .btn'); 
-    console.log("Button clicked:", el)// check actual buttons or styled ones
+    const el = e.target.closest('button, [role="button"], input[type="submit"], .btn, a[href*="apply"]'); 
     if (el) {
-        //console.log("Button clicked:", el);
+        console.log("Potential apply element clicked:", el);
         trackClicks(e);
     }
 }
 
+function setupDynamicButtonObserver() {
+    if (isTrackingActive) {
+        console.log('Setting up dynamic button observer');
+        
+        const buttonObserver = new MutationObserver((mutations) => {
+            for (const mutation of mutations) {
+                if (mutation.addedNodes.length > 0) {
+                    mutation.addedNodes.forEach(node => {
+                        if (node.nodeType === Node.ELEMENT_NODE) {
+
+                            const applyButtons = node.querySelectorAll('button, [role="button"], input[type="submit"], .btn, a[href*="apply"]');
+                            applyButtons.forEach(button => {
+                                const text = button.innerText?.toLowerCase();
+                                if (text && containsApplyText(text)) {
+                                    console.log('SPA: Dynamically added apply button detected', button);
+                                    button.addEventListener('click', handleClick);
+                                }
+                            });
+                        }
+                    });
+                }
+            }
+        });
+        
+        buttonObserver.observe(document.body, { childList: true, subtree: true });
+        return buttonObserver;
+    }
+    return null;
+}

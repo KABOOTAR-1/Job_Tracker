@@ -7,6 +7,9 @@ const {
   updateCompany, 
   deleteCompany 
 } = require('../controllers/companyController');
+const { protect } = require('../middleware/authMiddleware');
+
+router.use(protect);
 
 router.route('/')
   .get(getCompanies)
