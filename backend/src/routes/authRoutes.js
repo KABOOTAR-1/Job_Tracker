@@ -1,13 +1,18 @@
 const express = require('express');
 const router = express.Router();
 const { 
-  authenticateExtension, 
-  linkExtensionToAccount 
+  login,
+  register,
+  getCurrentUser
 } = require('../controllers/authController');
 const { protect } = require('../middleware/authMiddleware');
 
-router.post('/extension', authenticateExtension);
-
-router.post('/link-extension', protect, linkExtensionToAccount);
+// Standard authentication routes
+router.get('/', (req, res) => {
+  res.status(200).json({ status: 'OK', message: 'Server is running' });
+});
+router.post('/login', login);
+router.post('/register', register);
+router.get('/me', protect, getCurrentUser);
 
 module.exports = router;

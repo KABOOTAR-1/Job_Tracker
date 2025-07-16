@@ -8,6 +8,11 @@ const TOKEN_STORAGE_KEY = 'jt_auth_token';
 const USER_STORAGE_KEY = 'jt_user_data';
 const TOKEN_EXPIRY_KEY = 'jt_token_expiry';
 
+// Debouncing mechanism to prevent duplicate requests
+// Store last request timestamps by company name and URL
+let lastRequestTimestamps = {};
+const DEBOUNCE_TIMEOUT = 5000; // 5 seconds
+
 // Add this at the start to restore tracking state
 chrome.storage.local.get(['trackingTabs'], (result) => {
     if (result.trackingTabs) {
@@ -52,6 +57,29 @@ async function saveCompanyToBackend(companyData) {
         if (!authenticated) {
             throw new Error('User not authenticated');
         }
+        
+        // Apply debounce mechanism to prevent duplicate submissions
+        const requestKey = `${companyData.name}|${companyData.url || ''}`;
+        const now = Date.now();
+        const lastRequestTime = lastRequestTimestamps[requestKey] || 0;
+        
+        // If we've made the same request recently, skip it
+        if (now - lastRequestTime < DEBOUNCE_TIMEOUT) {
+            console.log(`Skipping duplicate request for ${companyData.name} - last request was ${(now - lastRequestTime)/1000}s ago`);
+            
+            // Still show a notification to the user that we've received their action
+            chrome.notifications.create({
+                type: 'basic',
+                iconUrl: 'src/assets/icon-48.png',
+                title: 'Already Tracking This Job',
+                message: `${companyData.name} application was already saved moments ago.`
+            });
+            
+            return; // Exit early without making API call
+        }
+        
+        // Update timestamp before making request
+        lastRequestTimestamps[requestKey] = now;
 
         // Get auth token
         const token = await getAuthToken();
@@ -199,8 +227,8 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
                     url: jobUrl,
                     applicationDate: new Date(),
                     status: 'applied',
-                    notes: `Applied via ${tab.title}`,
-                    browserIdentifier: chrome.runtime.id // Use extension ID as identifier
+                    notes: `Applied via ${tab.title}`
+                    // Browser identifier removed as it's no longer needed
                 };
                 
                 // Send to backend API

@@ -31,10 +31,7 @@ const userSchema = new mongoose.Schema(
       type: mongoose.Schema.Types.ObjectId,
       ref: 'Company'
     }],
-    browserIdentifier: {
-      type: String,
-      trim: true
-    }
+    // browserIdentifier field removed
   },
   {
     timestamps: true
