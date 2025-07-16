@@ -1,5 +1,5 @@
 // auth.js - Handles authentication functions for the Job Tracker extension
-const API_URL = 'http://localhost:5000/api';
+const API_URL = 'https://job-tracker-bb45.onrender.com/api';
 
 // Token storage constants
 const TOKEN_STORAGE_KEY = 'jt_auth_token';
