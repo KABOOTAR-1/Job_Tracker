@@ -1,5 +1,5 @@
 // popup.js
-const API_URL = 'http://localhost:5000/api';
+const API_URL = 'https://job-tracker-bb45.onrender.com/api'; // Change this to your actual API URL
 const EXTENSION_ID = chrome.runtime.id;
 
 // Authentication storage keys
@@ -218,27 +218,10 @@ async function fetchApplications() {
         console.error('Error fetching applications:', error);
         loadingElement.classList.add('hidden');
         errorElement.classList.remove('hidden');
-        errorElement.querySelector('span').textContent = error.message;
-        
-        // Try local storage as fallback
-        tryLocalStorageFallback();
+        errorElement.querySelector('span').textContent = `Error: ${error.message}. Please try again later.`;
     }
 }
-function tryLocalStorageFallback() {
-    chrome.storage.local.get(['companies'], result => {
-        if (result.companies && Object.keys(result.companies).length > 0) {
-            applications = Object.entries(result.companies).map(([name, details]) => ({
-                name,
-                applicationDate: details.date || new Date().toISOString(),
-                status: 'applied',
-                url: details.url || ''
-            }));
-            
-            displayApplications();
-            errorElement.querySelector('span').textContent = '(Showing local data)'; 
-        }
-    });
-}
+// Function removed - no longer using localStorage fallback
 
 async function initialize() {
     console.log('Initializing popup.js...');

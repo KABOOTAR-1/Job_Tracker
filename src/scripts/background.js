@@ -1,7 +1,7 @@
 let trackingTabs = {};
 
 // Backend API URL - change this to your actual API URL
-const API_BASE_URL = 'http://localhost:5000/api';
+const API_BASE_URL = 'https://job-tracker-bb45.onrender.com/api';
 
 // Authentication storage keys
 const TOKEN_STORAGE_KEY = 'jt_auth_token';
@@ -111,29 +111,14 @@ async function saveCompanyToBackend(companyData) {
     } catch (error) {
         console.error('Error saving to backend:', error.message);
         
-        // Fall back to local storage if backend fails
-        fallbackToLocalStorage(companyData);
+        // Show error notification to user
+        chrome.notifications.create({
+            type: 'basic',
+            iconUrl: 'src/assets/icon-48.png',
+            title: 'Error Saving Application',
+            message: `Could not save application to ${companyData.name}. Please try again later.`
+        });
     }
-}
-
-// Fallback function to use local storage if backend is unavailable
-function fallbackToLocalStorage(companyData) {
-    console.log('Falling back to local storage');
-    chrome.storage.local.set({ [companyData.name]: Date.now() }, () => {
-        if (chrome.runtime.lastError) {
-            console.error(`Error saving company locally: ${chrome.runtime.lastError.message}`);
-        } else {
-            console.log(`Company saved locally as fallback: ${companyData.name}`);
-            
-            // Show notification to user about fallback
-            chrome.notifications.create({
-                type: 'basic',
-                iconUrl: 'src/assets/icon-48.png',
-                title: 'Local Backup Created',
-                message: `Saved ${companyData.name} locally (backend unavailable)`
-            });
-        }
-    });
 }
 
 // Handle auth check requests

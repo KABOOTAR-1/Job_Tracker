@@ -1,5 +1,5 @@
 // Constants
-const API_BASE_URL = 'http://localhost:5000/api';
+const API_BASE_URL ='https://job-tracker-bb45.onrender.com/api';
 
 // Authentication constants
 const TOKEN_STORAGE_KEY = 'jt_auth_token';
